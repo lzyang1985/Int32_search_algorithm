@@ -1,8 +1,16 @@
 ---
 title: 项目会议总目录
-last_updated: 2026-06-02T23:59
+last_updated: 2026-06-04T12:00
 status: Active
 meetings_registry:
+  - meeting_id: meeting_017_performance_squeeze
+    title: 性能压榨空间研讨会
+    status: Reviewing
+    date: 2026-06-04
+    participants: [Architect, Algorithm, Backend, Security, Fullstack]
+    parent_task: root
+    decisions_summary: |
+      10项决议 D-130~D-139。9项全票/条件通过，1项被 Sec 安全否决(跳过原子读 D-134)。核心方向：项目进入"定向 P1 优化"模式(D-138)，4 个 POC 共 13 项 P1 行动项(8-10天)：PGO+LTO+64B对齐(D-130)、Huge Pages(D-131)、预取距离调优(D-132)、热键缓存埋点+条件实现(D-133a/b)。预期均匀 50% 场景 470→330-360 cy(1.3-1.4x)，Zipf α=1.0 条件性 2.2-2.6x。9 项伪命题归档(van Emde Boas/3-byte编码/手写汇编/flatten等)。新增门禁 G6 = G1-G5 + D-130~133b 完成,门禁评估延后到 POC 全部完成。
   - meeting_id: meeting_016_optimization_direction
     title: 项目优化方向讨论会（终会）
     status: Reviewing
@@ -139,6 +147,7 @@ meetings_registry:
 ## 进行中会议
 | meeting_id | 标题 | 日期 | 参与者 | 关联任务 |
 |------------|------|------|--------|----------|
+| meeting_017_performance_squeeze | 性能压榨空间研讨会 | 2026-06-04 | Arch, Algo, Backend, Sec, FS | root |
 | meeting_016_optimization_direction | 项目优化方向讨论会（终会） | 2026-06-02 | Arch, Algo, Backend, Sec | root |
 
 ## 已完成会议

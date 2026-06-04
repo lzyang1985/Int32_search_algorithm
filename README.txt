@@ -544,6 +544,8 @@
   Path B1 (high20 + lo44 scan): ~318 cy/query  (5.30x vs Scalar)
   Path Scalar (fallback):       ~1560 cy/query
 
+  性能回归门禁: test_int64_perf.c | 10M uniform | ≤5000 cy/query | 0 mismatches
+
 6.2 libint32search
 
   Path A (AVX2 8 路 SIMD 二分):
@@ -617,6 +619,13 @@
   make test-range   编译并运行 find_range 测试 (ASan/UBSan)
   make clean        清理所有产物
 
+  :: Int64 目标
+  make lib-int64       编译静态库 libint64search.a
+  make test-int64      编译并运行 Int64 正确性测试 (ASan/UBSan)
+  make test-int64-perf 编译并运行 Int64 10M 性能回归测试
+  make test-int64-zipf 编译并运行 Int64 Zipf 退化场景测试
+  make clean-int64     清理 Int64 编译产物
+
 7.5 编译演示程序
 
   :: Int32 查找 Demo (默认, 含布隆)
@@ -643,6 +652,14 @@
   :: Int64 正确性测试
   gcc -O3 -std=c11 -mavx2 test/test_int64.c src/platform_memory.o src/build_sorted_int64.o src/search_scalar_int64.o src/build_dir_int64.o src/build_decision_int64.o src/search_b1_int64.o src/api_int64.o -Iinclude -Isrc -o test_int64 -lm
   ./test_int64
+
+  :: Int64 10M 性能回归测试 (10M 数据, ~10 秒)
+  gcc -O3 -std=c11 -mavx2 test/test_int64_perf.c src/platform_memory.o src/build_sorted_int64.o src/search_scalar_int64.o src/build_dir_int64.o src/build_decision_int64.o src/search_b1_int64.o src/api_int64.o -Iinclude -Isrc -o test_int64_perf -lm
+  ./test_int64_perf
+
+  :: Int64 Zipf α=1.0 退化场景测试 (验证 B1 fallback)
+  gcc -O3 -std=c11 -mavx2 test/test_int64_zipf.c src/platform_memory.o src/build_sorted_int64.o src/search_scalar_int64.o src/build_dir_int64.o src/build_decision_int64.o src/search_b1_int64.o src/api_int64.o -Iinclude -Isrc -o test_int64_zipf -lm
+  ./test_int64_zipf
 
   :: 范围查找测试
   gcc -O3 -std=c11 -mavx2 test/test_range.c src/*.o -Iinclude -Isrc -o test_range -lm

@@ -44,7 +44,7 @@ OBJS64   = $(SRCDIR)/platform_memory.o \
            $(SRCDIR)/api_int64.o
 
 .PHONY: all lib test test-thread test-b1 test-thread-b1 test-range test-bloom bench clean
-.PHONY: lib-int64 test-int64 clean-int64
+.PHONY: lib-int64 test-int64 test-int64-perf test-int64-zipf clean-int64
 
 all: lib test bench
 
@@ -115,11 +115,23 @@ test-int64: $(LIB64_NAME).a $(TESTDIR)/test_int64.c
 	@echo "Running Int64 tests..."
 	./int64search_test
 
+test-int64-perf: $(LIB64_NAME).a $(TESTDIR)/test_int64_perf.c
+	$(CC) $(CFLAGS) -mavx2 -I$(INCDIR) -I$(SRCDIR) \
+		$(TESTDIR)/test_int64_perf.c $(LIB64_NAME).a -o int64search_perf -lm
+	@echo "Running Int64 10M perf regression test..."
+	./int64search_perf
+
+test-int64-zipf: $(LIB64_NAME).a $(TESTDIR)/test_int64_zipf.c
+	$(CC) $(CFLAGS) -mavx2 -I$(INCDIR) -I$(SRCDIR) \
+		$(TESTDIR)/test_int64_zipf.c $(LIB64_NAME).a -o int64search_zipf -lm
+	@echo "Running Int64 Zipf degenerate test..."
+	./int64search_zipf
+
 clean-int64:
 	rm -f $(SRCDIR)/build_sorted_int64.o $(SRCDIR)/search_scalar_int64.o
 	rm -f $(SRCDIR)/build_dir_int64.o $(SRCDIR)/build_decision_int64.o
 	rm -f $(SRCDIR)/search_b1_int64.o $(SRCDIR)/api_int64.o
-	rm -f $(LIB64_NAME).a int64search_test
+	rm -f $(LIB64_NAME).a int64search_test int64search_perf int64search_zipf
 
 $(SRCDIR)/api.o: $(SRCDIR)/api.c $(INCDIR)/int32_search.h $(SRCDIR)/internal.h \
                   $(SRCDIR)/platform_memory.h $(SRCDIR)/platform_cpu.h \
