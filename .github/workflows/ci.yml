@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-asan-ubsan:
+    name: Test (ASan/UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test Int32 (ASan/UBSan)
+        run: make test
+
+      - name: Test B1 path (ASan/UBSan)
+        run: make test-b1
+
+      - name: Test range (ASan/UBSan)
+        run: make test-range
+
+  test-tsan:
+    name: Test (TSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test threads (TSan)
+        run: make test-thread
+
+      - name: Test B1 threads (TSan)
+        run: make test-thread-b1

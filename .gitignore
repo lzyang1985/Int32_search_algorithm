@@ -1,0 +1,27 @@
+*.o
+*.a
+*.exe
+*.gch
+*.gcda
+*.gcno
+*.gcov
+*.tar.gz
+*.zip
+*.csv
+
+# IDE
+.idea/
+.vscode/
+.trae/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Sensitive
+.ssh/
+
+# Build output
+build/
+*.out
