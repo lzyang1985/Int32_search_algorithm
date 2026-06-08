@@ -1,4 +1,5 @@
 #include "build_b1.h"
+#include "platform_memory.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,7 +16,9 @@ uint16_t *build_b1(const int32_t *vals, size_t n, const int32_t *dir)
     if (vals == NULL || n == 0) return NULL;
     if (n > SIZE_MAX / sizeof(uint16_t)) return NULL;
 
-    uint16_t *lo16 = (uint16_t *)malloc(n * sizeof(uint16_t));
+    /* D-141: 32-byte aligned allocation for optimal SIMD loads.
+     * Aligned base reduces cache-line-split probability on _mm256_loadu_si256. */
+    uint16_t *lo16 = (uint16_t *)platform_aligned_alloc(n * sizeof(uint16_t));
     if (lo16 == NULL) return NULL;
 
     for (size_t i = 0; i < n; i++) {

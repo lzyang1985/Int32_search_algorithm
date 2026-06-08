@@ -40,10 +40,10 @@ parent_task: root
 | ACT-32 | 实现 TODO-04: Makefile 增加 `lib-int64` / `test-int64` / `clean-int64` 目标 | 配置 | 1-2 小时 | D-115 | ✅ 完成 |
 | ACT-33 | 执行 D-037 实验: MinGW `-march=native` vs `-mavx2` 对比，输出定性结论 | 调研 | 30 分钟 | D-125 | ✅ 完成 |
 | ACT-34 | 调研 Clang for Windows (LLVM-MinGW) 性能对比，跑 Int32 benchmark 三条路径 | 调研 | 1 天 | D-125 | ✅ 完成 |
-| ACT-35 | 建立 GitHub Actions CI 最小流水线（Linux GCC: test + ASan/UBSan + TSan） | 配置 | 1-2 天 | D-124 | ⬜ 待执行 |
-| ACT-36 | TODO-06: 为 Int64 库增加 10M uniform 性能回归测试 | 测试 | 2-4 小时 | ARCH | ⬜ 待执行 |
-| ACT-37 | TODO-07: 为 Int64 库增加 zipf α=1.0 退化场景测试（验证阈值 256 回退） | 测试 | 2-4 小时 | ARCH | ⬜ 待执行 |
-| ACT-38 | 启动 Int64 Phase 2 立项: 创建 ALIGNMENT 文档，聚焦 COW + Bloom 重建 + broadcast hoisting | 设计 | 2-4 小时 | D-116 | ⬜ 待执行 |
+| ACT-35 | 建立 GitHub Actions CI 最小流水线（Linux GCC: test + ASan/UBSan + TSan） | 配置 | 1-2 天 | D-124 | ✅ 完成 |
+| ACT-36 | TODO-06: 为 Int64 库增加 10M uniform 性能回归测试 | 测试 | 2-4 小时 | ARCH | ✅ 完成 |
+| ACT-37 | TODO-07: 为 Int64 库增加 zipf α=1.0 退化场景测试（验证阈值 409 回退） | 测试 | 2-4 小时 | ARCH | ✅ 完成 |
+| ACT-38 | 启动 Int64 Phase 2 立项: 创建 ALIGNMENT 文档，聚焦 COW + Bloom 重建 + broadcast hoisting | 设计 | 2-4 小时 | D-116 | ✅ 完成 (ALIGNMENT + DESIGN 已交付,2026-06-04) |
 | ACT-39 | 热键缓存 POC: 独立快速验证（~200 行），目标 Zipf 场景 ≥2.0x vs scalar | POC | 1-2 天 | D-122 | ⬜ 待执行 |
 | ACT-40 | Huge Pages POC: `perf` 确认 TLB miss 占比 → 2MB 对齐分配 → benchmark 对比 | POC | 1-2 天 | D-129 | ⬜ 待执行 |
 

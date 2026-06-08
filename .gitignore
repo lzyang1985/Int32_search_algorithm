@@ -21,7 +21,9 @@ Thumbs.db
 
 # Sensitive
 .ssh/
+other/server_connection_report.md
 
 # Build output
 build/
 *.out
+*.log

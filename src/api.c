@@ -96,7 +96,7 @@ int32_search_t int32_search_create(const int32_t *data, size_t n,
     }
 
     free(new_dir);
-    free(new_lo16);
+    platform_aligned_free(new_lo16);
 
 setup_path_a:
     impl->path = PATH_A;
@@ -209,7 +209,7 @@ int int32_search_rebuild(int32_search_t handle,
             new_path = build_decision_select_path(new_dir, n);
             if (new_path == PATH_A) {
                 free(new_dir);
-                free(new_lo16);
+                platform_aligned_free(new_lo16);
                 new_dir = NULL;
                 new_lo16 = NULL;
             }
@@ -265,7 +265,7 @@ int int32_search_rebuild(int32_search_t handle,
     }
 
     if (old_vals != NULL) platform_aligned_free((void *)old_vals);
-    if (old_lo16 != NULL) free((void *)old_lo16);
+    if (old_lo16 != NULL) platform_aligned_free((void *)old_lo16);
     if (old_dir  != NULL) free((void *)old_dir);
 
 #ifdef INT32_SEARCH_USE_BLOOM
@@ -297,7 +297,7 @@ int int32_search_destroy(int32_search_t handle)
     if (impl->path == PATH_B1) {
         const uint16_t *l = atomic_ptr_load(&impl->lo16, memory_order_relaxed);
         const int32_t  *d = atomic_ptr_load(&impl->dir,  memory_order_relaxed);
-        if (l != NULL) free((void *)l);
+        if (l != NULL) platform_aligned_free((void *)l);
         if (d != NULL) free((void *)d);
     }
 

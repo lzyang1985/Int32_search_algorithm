@@ -3,7 +3,7 @@ title: 项目优化方向讨论会（终会）
 meeting_id: meeting_016_optimization_direction
 status: Reviewing
 created_at: 2026-06-02
-updated_at: 2026-06-03
+updated_at: 2026-06-04
 author: Agent_Executor
 parent_doc: docs/meetings/meeting_index.md
 parent_task: root
@@ -34,7 +34,7 @@ participants: [Architect, Algorithm, Backend, Fullstack, Security]
 - **14 项全票一致通过** 🔒
 - **1 项冲突被 Host 裁定解决** (D-121 Eytzinger: Arch ❌ → Algo ✅ → 裁定采纳 Algo)
 
-### 执行进度: P0 5/5 | P1 3/9
+### 执行进度: P0 5/5 | P1 6/9
 
 ### 核心决议
 
@@ -60,7 +60,7 @@ participants: [Architect, Algorithm, Backend, Fullstack, Security]
 | 优先级 | 总数 | 已完成 | 待执行 |
 |--------|------|--------|--------|
 | P0 | 5 | 5 | 0 |
-| P1 | 9 | 3 | 6 |
+| P1 | 9 | 6 | 3 |
 | P2 | 6 | 0 | 6 |
 | 归档 | 6 | — | — |
 
@@ -74,12 +74,13 @@ participants: [Architect, Algorithm, Backend, Fullstack, Security]
 🔧 P1 已执行:
   ├── ✅ ACT-32 Makefile int64 target
   ├── ✅ ACT-33 -march=native vs -mavx2 (结论: 不推荐 native)
-  └── ✅ ACT-34 Clang vs GCC (结论: GCC 为主力)
+  ├── ✅ ACT-34 Clang vs GCC (结论: GCC 为主力)
+  ├── ✅ ACT-35 GitHub Actions CI (test + ASan/UBSan + TSan)
+  ├── ✅ ACT-36 Int64 10M uniform 性能回归测试
+  └── ✅ ACT-37 Int64 Zipf α=1.0 退化场景测试
 
 ⬜ P1 待执行:
-  ├── ACT-35 CI/CD 最小流水线
   ├── Int64 Phase 2 立项 (ACT-38)
-  ├── TODO-06/07 基准测试 (ACT-36/37)
   ├── Hot-key cache POC (ACT-39)
   └── Huge Pages POC (ACT-40)
 
