@@ -1,6 +1,6 @@
 ================================================================================
   Int32/Int64 高性能查找库 — 项目介绍与函数参考手册
-  版本: v1.0.0 (Int32) / v0.1.0 (Int64) | 最后更新: 2026-06-02
+  版本: v1.0.0 (Int32) / v0.2.0 (Int64) | 最后更新: 2026-06-04
 ================================================================================
 
 ===== 1. 项目概述 =====
@@ -8,7 +8,7 @@
 本项目提供两个高性能 C 语言静态库，用于有序整数数组的精确查找：
 
   libint32search  — Int32 查找库 (主力, v1.0.0)
-  libint64search  — Int64 查找库 (二期, v0.1.0)
+  libint64search  — Int64 查找库 (二期, v0.2.0)
 
 核心目标是在 10M 数据规模下，利用 SIMD (AVX2) 指令集实现远超标准二分查找
 的查询速度。两个库均采用纯 C (C11) 实现，零外部运行时依赖，仅需 GCC。
@@ -108,6 +108,12 @@
   Int32 COW:
   - Path A: _Atomic 单指针交换
   - Path B1: _Atomic 三指针原子交换 (vals + lo16 + dir)
+
+  Int64 COW (Phase 2 起, v0.2.0+):
+  - 多 reader 并发调用 int64_search_find 线程安全(lock-free COW 读快照)
+  - int64_search_rebuild 仍需由单线程调用(COW 写者)
+  - int64_search_destroy 等待所有 reader 退出后才释放底层数据
+  - int64_search_set_bloom_bypass / int64_search_get_bloom_bypass 与多 reader 并发安全
 
 ===== 3. libint32search API 参考 =====
 
@@ -378,9 +384,12 @@
     INT64_SEARCH_ERR_INVALID_ARG / INT64_SEARCH_ERR_MEMORY /
     INT64_SEARCH_ERR_TOO_LARGE
 
-  ⚠️ 线程安全: Int64 rebuild 当前仅支持单线程调用。
-    rebuild 期间其他线程并发 find 存在数据竞争风险。
-    若需多线程并发 rebuild，请在外部使用互斥锁保护 rebuild 调用。
+  ⚠️ 线程安全(Phase 2 起, v0.2.0+):
+    - 多 reader 并发调用 int64_search_find 线程安全(lock-free COW 读快照)
+    - int64_search_rebuild 仍需由单线程调用(COW 写者)
+    - rebuild 期间 reader 可继续调用 find(读到旧或新快照,不会出现撕裂状态)
+    - int64_search_destroy 等待所有 reader 退出后才释放底层数据
+    - 若需多线程并发 rebuild,请在外部使用互斥锁保护 rebuild 调用
 
 4.2.5 int64_search_version — 获取版本号
 
@@ -388,7 +397,7 @@
     const char *int64_search_version(void);
 
   返回值:
-    "libint64search 0.1.0"
+    "libint64search 0.2.0"
 
 4.2.6 int64_search_set_bloom_bypass — 设置布隆旁路开关
 
@@ -579,6 +588,9 @@
   gcc -O3 -std=c11 -c src/search_scalar.c -o src/search_scalar.o
   gcc -O3 -std=c11 -mavx2 -c src/search_avx2.c -o src/search_avx2.o
   gcc -O3 -std=c11 -mavx2 -c src/search_b1.c -o src/search_b1.o
+  :: 可选: 启用 B1 2x SIMD 循环展开 (需配合 -fno-unroll-loops, 否则 GCC 自动
+  :: 展开器会二次展开导致 YMM 寄存器溢出 ~25% 性能退化)
+  :: gcc -O3 -std=c11 -mavx2 -fno-unroll-loops -DINT32_SEARCH_B1_UNROLL2 -c src/search_b1.c -o src/search_b1.o
   gcc -O3 -std=c11 -Iinclude -Isrc -c src/api.c -o src/api.o
 
   :: 可选: 布隆过滤器
@@ -620,11 +632,13 @@
   make clean        清理所有产物
 
   :: Int64 目标
-  make lib-int64       编译静态库 libint64search.a
-  make test-int64      编译并运行 Int64 正确性测试 (ASan/UBSan)
-  make test-int64-perf 编译并运行 Int64 10M 性能回归测试
-  make test-int64-zipf 编译并运行 Int64 Zipf 退化场景测试
-  make clean-int64     清理 Int64 编译产物
+  make lib-int64              编译静态库 libint64search.a
+  make test-int64             编译并运行 Int64 正确性测试 (ASan/UBSan,需 libasan/libubsan)
+  make test-int64-perf        编译并运行 Int64 10M 性能回归测试
+  make test-int64-zipf        编译并运行 Int64 Zipf 退化场景测试
+  make test-int64-thread      编译并运行 Int64 Phase 2 TSan 并发测试 (需 libtsan)
+  make test-int64-thread-func Windows MinGW 兜底: 编译并运行无 TSan 的功能测试
+  make clean-int64            清理 Int64 编译产物
 
 7.5 编译演示程序
 
@@ -660,6 +674,14 @@
   :: Int64 Zipf α=1.0 退化场景测试 (验证 B1 fallback)
   gcc -O3 -std=c11 -mavx2 test/test_int64_zipf.c src/platform_memory.o src/build_sorted_int64.o src/search_scalar_int64.o src/build_dir_int64.o src/build_decision_int64.o src/search_b1_int64.o src/api_int64.o -Iinclude -Isrc -o test_int64_zipf -lm
   ./test_int64_zipf
+
+  :: Int64 Phase 2 TSan 并发测试 (1 writer + 4 readers × 64K uniform × 2s,Linux/Clang 需 libtsan)
+  gcc -O1 -std=c11 -mavx2 -fsanitize=thread test/test_int64_thread.c libint64search.a -Iinclude -Isrc -o int64search_thread_test -lpthread
+  ./int64search_thread_test
+
+  :: Int64 Phase 2 功能测试 (Windows MinGW 兜底,无 TSan,只验功能)
+  gcc -O1 -std=c11 -mavx2 test/test_int64_thread.c libint64search.a -Iinclude -Isrc -o int64search_thread_test -lpthread
+  ./int64search_thread_test
 
   :: 范围查找测试
   gcc -O3 -std=c11 -mavx2 test/test_range.c src/*.o -Iinclude -Isrc -o test_range -lm

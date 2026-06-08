@@ -215,6 +215,124 @@ static void test_L6_boundary(void) {
     int64_search_destroy(h);
 }
 
+static void test_L7_cow_behavior(void) {
+    printf("\n=== L7: COW 行为 (Phase 2) ===\n");
+
+    /* === L7-COW-1: rebuild 后查询旧 key → NOT_FOUND === */
+    {
+        int64_t data1[100], data2[100];
+        for (int i = 0; i < 100; i++) { data1[i] = (int64_t)i; data2[i] = (int64_t)(10000 + i); }
+
+        int64_search_config_t cfg = {0, {0}};
+        int64_search_t h = int64_search_create(data1, 100, &cfg);
+        CHECK(h != NULL, "L7-COW-1: create data1 succeeded");
+
+        int rc = int64_search_rebuild(h, data2, 100);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-1: rebuild data2 succeeded");
+
+        size_t idx;
+        rc = int64_search_find(h, 50, &idx);
+        CHECK(rc == INT64_SEARCH_ERR_NOT_FOUND, "L7-COW-1: old key=50 NOT_FOUND after rebuild");
+
+        int64_search_destroy(h);
+    }
+
+    /* === L7-COW-2: rebuild 后查询新 key → OK === */
+    {
+        int64_t data1[100], data2[100];
+        for (int i = 0; i < 100; i++) { data1[i] = (int64_t)i; data2[i] = (int64_t)(10000 + i); }
+
+        int64_search_config_t cfg = {0, {0}};
+        int64_search_t h = int64_search_create(data1, 100, &cfg);
+        CHECK(h != NULL, "L7-COW-2: create data1 succeeded");
+
+        int rc = int64_search_rebuild(h, data2, 100);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-2: rebuild data2 succeeded");
+
+        size_t idx;
+        rc = int64_search_find(h, 10050, &idx);
+        CHECK(rc == INT64_SEARCH_OK && idx == 50, "L7-COW-2: new key=10050 at idx=50 after rebuild");
+
+        int64_search_destroy(h);
+    }
+
+    /* === L7-COW-3: rebuild 100 次后查询正确(轻量版 DEV-I64-001 验证) === */
+    {
+        int64_t data[5000];
+        for (int i = 0; i < 5000; i++) data[i] = (int64_t)i;
+
+        int64_search_config_t cfg = {0, {0}};
+        int64_search_t h = int64_search_create(data, 5000, &cfg);
+        CHECK(h != NULL, "L7-COW-3: create succeeded");
+
+        int mismatches = 0;
+        for (int round = 0; round < 100; round++) {
+            int64_t base = (int64_t)(round * 10000);
+            for (int i = 0; i < 5000; i++) data[i] = base + (int64_t)i;
+
+            int rc = int64_search_rebuild(h, data, 5000);
+            if (rc != INT64_SEARCH_OK) { mismatches++; continue; }
+
+            size_t idx;
+            int64_t key = base + 2500;
+            rc = int64_search_find(h, key, &idx);
+            if (rc != 0 || idx != 2500) mismatches++;
+        }
+        CHECK(mismatches == 0, "L7-COW-3: 100 rebuild rounds, %d mismatches", mismatches);
+
+        int64_search_destroy(h);
+    }
+
+    /* === L7-COW-4: rebuild 保留 bloom_bypass 状态(Q-A2) === */
+    {
+        int64_t data1[100], data2[100];
+        for (int i = 0; i < 100; i++) { data1[i] = (int64_t)i; data2[i] = (int64_t)(20000 + i); }
+
+        int64_search_config_t cfg = {0, {0}};
+        int64_search_t h = int64_search_create(data1, 100, &cfg);
+        CHECK(h != NULL, "L7-COW-4: create succeeded");
+
+        /* 开启 bypass */
+        int rc = int64_search_set_bloom_bypass(h, 1);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-4: set_bloom_bypass(1) OK");
+
+        /* rebuild */
+        rc = int64_search_rebuild(h, data2, 100);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-4: rebuild OK");
+
+        /* 验证 bypass 保持 */
+        int bypass = int64_search_get_bloom_bypass(h);
+        CHECK(bypass == 1, "L7-COW-4: bloom_bypass still 1 after rebuild");
+
+        /* 关闭 */
+        int64_search_set_bloom_bypass(h, 0);
+        rc = int64_search_rebuild(h, data1, 100);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-4: rebuild data1 again OK");
+        bypass = int64_search_get_bloom_bypass(h);
+        CHECK(bypass == 0, "L7-COW-4: bloom_bypass 0 preserved");
+
+        int64_search_destroy(h);
+    }
+
+    /* === L7-COW-5: destroy 幂等性 + 等待语义(单线程验证) === */
+    {
+        int64_t data[100];
+        for (int i = 0; i < 100; i++) data[i] = (int64_t)i;
+
+        int64_search_config_t cfg = {0, {0}};
+        int64_search_t h = int64_search_create(data, 100, &cfg);
+        CHECK(h != NULL, "L7-COW-5: create succeeded");
+
+        int rc = int64_search_destroy(h);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-5: destroy 1st OK");
+
+        /* Phase 2 设计: destroy 后的 handle 行为未定义(impl 已 free)
+         * Phase 1 行为: destroy(NULL) 返回 OK(idempotent) */
+        rc = int64_search_destroy(NULL);
+        CHECK(rc == INT64_SEARCH_OK, "L7-COW-5: destroy(NULL) OK (idempotent)");
+    }
+}
+
 int main(void) {
     printf("=== int64_search 测试套件 ===\n");
 
@@ -224,6 +342,7 @@ int main(void) {
     test_L4_bloom_bypass();
     test_L5_rebuild();
     test_L6_boundary();
+    test_L7_cow_behavior();
 
     printf("\n=== 结果: %d failures ===\n", g_failures);
     return g_failures ? 1 : 0;

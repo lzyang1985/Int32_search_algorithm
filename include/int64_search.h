@@ -28,9 +28,12 @@ int int64_search_find(int64_search_t handle, int64_t key,
                        size_t *out_index);
 int int64_search_destroy(int64_search_t handle);
 
-/* ⚠️ 线程安全警告: int64_search_rebuild 当前不支持并发调用。
- * rebuild 期间若其他线程同时执行 find，存在数据竞争风险。
- * 请确保 rebuild 调用是单线程的，或在外部加锁保护。 */
+/* 线程模型(Phase 2):
+ *   - 多 reader 并发调用 int64_search_find 线程安全(lock-free COW 读快照)
+ *   - int64_search_rebuild 仍需由单线程调用(COW 写者)
+ *     rebuild 期间 reader 可继续调用 find(读到旧或新快照,不会出现撕裂状态)
+ *   - int64_search_destroy 等待所有 reader 退出后才释放底层数据(Q3 决议)
+ *   - int64_search_set_bloom_bypass 与多 reader 并发安全 */
 int int64_search_rebuild(int64_search_t handle,
                           const int64_t *data, size_t n);
 const char *int64_search_version(void);

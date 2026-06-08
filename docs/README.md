@@ -18,6 +18,8 @@
 | 系统设计 — Phase 2 A+B1 | [architecture/design_phase2_ab1.md](architecture/design_phase2_ab1.md) | task_003 | 2026-06-01 | design |
 | 验收报告 — Phase 2 A+B1 | [decisions/phase2_ab1_acceptance.md](decisions/phase2_ab1_acceptance.md) | task_003 | 2026-06-01 | acceptance |
 | POC 结果 — Int64 + Bloom Go/No-Go | [decisions/poc_int64_report.md](decisions/poc_int64_report.md) | meeting_014 | 2026-06-02 | go-nogo report |
+| 系统设计 — Int64 Phase 2 COW | [architecture/design_int64_phase2_cow.md](architecture/design_int64_phase2_cow.md) | task_006 | 2026-06-08 | design |
+| 验收报告 — Int64 Phase 2 COW Linux CI | [decisions/int64_phase2_cow_linux_ci_acceptance.md](decisions/int64_phase2_cow_linux_ci_acceptance.md) | task_006 | 2026-06-08 | acceptance |
 
 ## 会议记录
 
@@ -70,13 +72,44 @@ docs/tasks/
     ├── DESIGN_task_003_phase2_ab1.md         — ⛔ Archived  系统设计
     └── TASK_task_003_phase2_ab1.md           — ✅ Frozen  原子任务拆分
 
-状态统计: ✅ Frozen x19 | ⛔ Archived x4
+├── task_004_phase3_v1_1/                    ← 子任务（Phase 3: v1.1 扩展）✅ Freeze
+│   ├── task_README.md                        — 📊 仪表盘（✅ Freeze）
+│   ├── ALIGNMENT_task_004_phase3_v1_1.md     — ✅ Frozen  需求对齐
+│   ├── CONSENSUS_task_004_phase3_v1_1.md     — ✅ Frozen  最终共识
+│   ├── DESIGN_task_004_phase3_v1_1.md        — ✅ Frozen  系统设计
+│   ├── TASK_task_004_phase3_v1_1.md          — ✅ Frozen  原子任务拆分
+│   ├── ACCEPTANCE_task_004_phase3_v1_1.md    — ✅ Frozen  验收检查
+│   ├── FINAL_task_004_phase3_v1_1.md         — ✅ Frozen  项目总结
+│   └── TODO_task_004_phase3_v1_1.md          — ✅ Frozen  待办清单
+│
+├── task_005_int64_extension/                ← 子任务（Int64 B1 扩展 Phase 1）✅ Freeze
+│   ├── task_README.md                        — 📊 仪表盘（✅ SUCCESS）
+│   ├── ALIGNMENT_int64_b1.md                 — ✅ Frozen  需求对齐
+│   ├── CONSENSUS_int64_b1.md                 — ✅ Frozen  最终共识
+│   ├── DESIGN_int64_b1.md                    — ⛔ Archived  系统设计
+│   ├── TASK_int64_b1.md                      — ✅ Frozen  原子任务拆分
+│   ├── ACCEPTANCE_int64_b1.md                — ✅ Frozen  验收检查
+│   ├── FINAL_int64_b1.md                     — ✅ Frozen  项目总结
+│   └── TODO_int64_b1.md                      — ✅ Frozen  待办清单
+│
+└── task_006_int64_phase2_cow/               ← 子任务（Int64 Phase 2: COW 多线程）✅ Freeze
+    ├── task_README.md                        — 📊 仪表盘（11/11 ✅, v0.2.0）
+    ├── ALIGNMENT_task_006_int64_phase2_cow.md — ✅ Frozen  需求对齐
+    ├── DESIGN_task_006_int64_phase2_cow.md    — ⛔ Archived  系统设计
+    ├── TASK_task_006_int64_phase2_cow.md      — ✅ Frozen  原子任务拆分
+    ├── ACCEPTANCE_T1~T8 (x7)                  — ✅ Frozen  逐任务验收
+    └── ACCEPTANCE_V1_V2_V3_linux_ci.md        — ⛔ Archived  端到端验证报告
+
+状态统计: ✅ Frozen x34 | ⛔ Archived x6
 
 三阶段交付（meeting_003 D-023，2026-05-27 修订：拆分为四阶段）：
   ├── ✅ Phase 1 MVP：AVX2 SIMD 二分（Path A 单路径）— 已交付，meeting_004 P0 修正完成
   ├── ✅ Phase 1.5 v0.2：多线程 — Path A COW（原子指针交换 + rebuild）— 已交付，7/7 ✅
   ├── ✅ Phase 2 v1.0：A+B1 双路径 + B1 COW + 自动选路 — 已交付，11/11 ✅，版本 1.0.0
-  └── ⏳ Phase 3 v1.1：扩展（AVX-512/Bloom/Windows/find_range）
+  ├── ✅ Phase 3 v1.1：扩展（Bloom/Windows/find_range）— 已交付 ✅
+  ├── ✅ Int64 Phase 1：Int64 B1 基本实现 — 已交付，task_005 ✅
+  ├── ✅ Int64 Phase 2 (v0.2.0)：Int64 COW 多线程 + Bloom 重建 — 已交付，11/11 ✅，TSan 零告警
+  └── ⏳ 未来：AVX-512 扩展（待 POC 验证）
 ```
 
 ## 技术方案全貌（最终确定）
@@ -206,3 +239,9 @@ graph TD
 | 2026-06-01 | Phase 1.5 COW 多线程交付：7/7 原子任务，8/8 并发测试 PASS。`int32_search_rebuild()` + `platform_thread.h` + COW 原子指针交换 |
 | 2026-06-01 | **Phase 2 A+B1 双路径交付**：11/11 原子任务，全量测试 ZERO FAILURES。B1 正式集成 + B1 COW + D-015 自动选路 + v1.0.0 |
 | 2026-05-30 | **POC Step 1 FIX-01~06 完成**：4 项代码修复 + dir_validate 增强 + 正确性验证 5 步全通过 + ASan/UBSan 11 规模零告警。修复 BUG-04（lo16 AVX2 越界）|
+| 2026-06-04 | **Int64 Phase 2 COW 立项完成**：task_006 ALIGNMENT + DESIGN + TASK Frozen (meeting_016 D-116/D-117/D-118)。4 个关键决策确认 |
+| 2026-06-04 | **Int64 Phase 2 T1-T5 执行完成**：COW find/destroy/rebuild + Bloom 重建 + 头文件警告移除。ASan/UBSan 0 告警 |
+| 2026-06-08 | **Int64 Phase 2 T6-T8 执行完成**：TSan 并发测试 + L7-COW 行为测试 + Makefile/README。Windows MinGW + Linux GCC 11.4 双平台 |
+| 2026-06-08 | **Int64 Phase 2 V1/V2/V3 Linux CI 端到端验证通过**：test_int64 49/49 PASS + TSan 3/3 零告警 + 10M perf 498 cy/query。task_006 归档至 docs/architecture/ + docs/decisions/ |
+| 2026-06-08 | **文档管理整理**：task_README 状态板刷新，task_004/task_005/task_006 补充进全局任务树。status: Frozen x34 | Archived x6 |
+| 2026-06-08 | **D-140 性能回归审计**：人工十轮测试发现 D-140（2x SIMD 展开）在 Windows GCC -O3 下产生 +25.7% 性能退化（Bloom OFF 50%: 140→176ns/q）。根因为 GCC 自动展开器二次展开导致 YMM 寄存器溢出。四位专家（Arch/Algo/Backend/Sec）并行分析确认。D-140 用 `#ifdef INT32_SEARCH_B1_UNROLL2` 条件编译包裹默认关闭，D-141/D-142/D-143 保留，D-143 加固（下界检查 + size_t 比较）。修复后性能完全恢复（141ns/q）。详见 meeting_017/05_d140_regression_audit.md。 |

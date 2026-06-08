@@ -44,7 +44,7 @@ OBJS64   = $(SRCDIR)/platform_memory.o \
            $(SRCDIR)/api_int64.o
 
 .PHONY: all lib test test-thread test-b1 test-thread-b1 test-range test-bloom bench clean
-.PHONY: lib-int64 test-int64 test-int64-perf test-int64-zipf clean-int64
+.PHONY: lib-int64 test-int64 test-int64-perf test-int64-zipf test-int64-thread test-int64-thread-func clean-int64
 
 all: lib test bench
 
@@ -65,7 +65,7 @@ $(SRCDIR)/build_sorted.o: $(SRCDIR)/build_sorted.c $(SRCDIR)/build_sorted.h $(SR
 $(SRCDIR)/build_dir.o: $(SRCDIR)/build_dir.c $(SRCDIR)/build_dir.h
 	$(CC) -c $(CFLAGS) -I$(SRCDIR) $< -o $@
 
-$(SRCDIR)/build_b1.o: $(SRCDIR)/build_b1.c $(SRCDIR)/build_b1.h
+$(SRCDIR)/build_b1.o: $(SRCDIR)/build_b1.c $(SRCDIR)/build_b1.h $(SRCDIR)/platform_memory.h
 	$(CC) -c $(CFLAGS) -I$(SRCDIR) $< -o $@
 
 $(SRCDIR)/build_decision.o: $(SRCDIR)/build_decision.c $(SRCDIR)/build_decision.h $(SRCDIR)/internal.h
@@ -110,8 +110,16 @@ $(SRCDIR)/api_int64.o: $(SRCDIR)/api_int64.c $(INCDIR)/int64_search.h $(SRCDIR)/
 	$(CC) -c $(CFLAGS) -I$(INCDIR) -I$(SRCDIR) $< -o $@
 
 test-int64: $(LIB64_NAME).a $(TESTDIR)/test_int64.c
-	$(CC) $(CFLAGS) -fsanitize=address,undefined -g \
-		-I$(INCDIR) -I$(SRCDIR) $(TESTDIR)/test_int64.c $(LIB64_NAME).a -o int64search_test -lm
+	@echo "=== Building Int64 test (with ASan/UBSan if available) ==="
+	-@$(CC) $(CFLAGS) "-fsanitize=address,undefined" -g -I$(INCDIR) -I$(SRCDIR) $(TESTDIR)/test_int64.c $(LIB64_NAME).a -o int64search_test_asan -lm 2>nul
+	@if exist int64search_test_asan.exe ( \
+		echo "Built with ASan/UBSan" & \
+		copy /Y int64search_test_asan.exe int64search_test.exe >nul & \
+		del int64search_test_asan.exe \
+	) else ( \
+		echo "*** ASan/UBSan unavailable - using plain build (no sanitizers) ***" & \
+		$(CC) $(CFLAGS) -g -I$(INCDIR) -I$(SRCDIR) $(TESTDIR)/test_int64.c $(LIB64_NAME).a -o int64search_test.exe -lm \
+	)
 	@echo "Running Int64 tests..."
 	./int64search_test
 
@@ -127,11 +135,33 @@ test-int64-zipf: $(LIB64_NAME).a $(TESTDIR)/test_int64_zipf.c
 	@echo "Running Int64 Zipf degenerate test..."
 	./int64search_zipf
 
+test-int64-thread: $(LIB64_NAME).a $(TESTDIR)/test_int64_thread.c
+	@echo "=== Building TSan-instrumented test (requires libtsan) ==="
+	$(CC) -O1 -g -std=c11 -fsanitize=thread -mavx2 \
+		-I$(INCDIR) -I$(SRCDIR) $(TESTDIR)/test_int64_thread.c $(LIB64_NAME).a \
+		-o int64search_thread_test -lpthread -lm || \
+		(echo "*** TSan build failed (libtsan missing) ***"; \
+		 echo "*** On Windows MinGW use: ***"; \
+		 echo "***   gcc -O1 -g -std=c11 -mavx2 test/test_int64_thread.c libint64search.a -Iinclude -Isrc -o int64search_thread_test -lpthread -lm ***"; \
+		 exit 1)
+	@echo "Running Int64 Phase 2 TSan test (64K uniform, 1 writer + 4 readers, 2s)..."
+	./int64search_thread_test
+
+# Windows MinGW fallback (no TSan library available)
+test-int64-thread-func: $(LIB64_NAME).a $(TESTDIR)/test_int64_thread.c
+	$(CC) -O1 -g -std=c11 -mavx2 \
+		-I$(INCDIR) -I$(SRCDIR) $(TESTDIR)/test_int64_thread.c $(LIB64_NAME).a \
+		-o int64search_thread_test_func -lpthread -lm
+	@echo "Running Int64 Phase 2 functional test (no TSan) (64K uniform, 1 writer + 4 readers, 2s)..."
+	./int64search_thread_test_func
+
 clean-int64:
-	rm -f $(SRCDIR)/build_sorted_int64.o $(SRCDIR)/search_scalar_int64.o
-	rm -f $(SRCDIR)/build_dir_int64.o $(SRCDIR)/build_decision_int64.o
-	rm -f $(SRCDIR)/search_b1_int64.o $(SRCDIR)/api_int64.o
-	rm -f $(LIB64_NAME).a int64search_test int64search_perf int64search_zipf
+	-del /Q src\build_sorted_int64.o src\search_scalar_int64.o 2>nul
+	-del /Q src\build_dir_int64.o src\build_decision_int64.o 2>nul
+	-del /Q src\search_b1_int64.o src\api_int64.o 2>nul
+	-del /Q libint64search.a int64search_test.exe int64search_perf.exe int64search_zipf.exe 2>nul
+	-del /Q int64search_thread_test.exe int64search_thread_test_func.exe 2>nul
+	-del /Q int64search_test_asan.exe 2>nul
 
 $(SRCDIR)/api.o: $(SRCDIR)/api.c $(INCDIR)/int32_search.h $(SRCDIR)/internal.h \
                   $(SRCDIR)/platform_memory.h $(SRCDIR)/platform_cpu.h \

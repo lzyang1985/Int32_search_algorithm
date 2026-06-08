@@ -253,3 +253,149 @@ parent_task: root
 | 10M Zipf α=1.0 (B1) | 1560 cy | **600-700 cy** | **2.2-2.6x** (条件) |
 | 1M uniform 50% (B1) | 282 cy | ~250 cy | 1.13x (收益衰减) |
 | 1M Zipf α=1.0 (B1) | -- | -- | 取决于 D-133a/b |
+
+---
+
+## 附加决议 (2026-06-04 B1 路径专项)
+
+以下决议来自 B1 路径专项讨论(议题5), 四位专家(Arch/Algo/Backend/Sec)意见。
+
+| 决议 | 内容 | Arch | Algo | Backend | Sec | 结果 |
+|------|------|:---:|:---:|:---:|:---:|:---:|
+| **D-140** | 2x SIMD 循环展开 (intrinsic) | ✅ | ✅ | ✅ | ✅ | **4/4 通过**, 🔒 |
+| **D-141** | `_mm256_load_si256` 对齐加载 (lo16 32B对齐) | ✅ | ✅ | ✅ | ✅ | **4/4 通过**, 🔒 |
+| **D-142** | 小桶 (<8) 标量快速路径 | ✅ | ✅ | ✅ | ✅ | **4/4 通过**, 🔒 |
+| **D-143** | Sec 防御: `end` 上界校验 + 禁止 vgather | ✅ | -- | -- | ✅ | **2/2 通过**, 🔒 |
+| **D-144** | B1 结构改动 A-F 全员否决 | ✅ | ✅ | ✅ | ✅ | **4/4 归档**, 🔒 |
+
+---
+
+### D-140: 2x SIMD 循环展开 (intrinsic)
+
+**核心论据 (Backend)**:
+- `vpmovmskb` 在 Skylake 上有 3 cycle 延迟,是热循环瓶颈
+- 将循环 2x 展开,两条独立 `vpcmpeqw` + `vpmovmskb` 链交错执行,隐藏延迟
+- 全用 intrinsic,零风险
+
+**预期收益**: 5-15% (10-70cy),取决于桶大小
+
+**实现**: 20 行改动,纯 intrinsic
+
+```c
+for (; i + 32 <= end; i += 32) {
+    __m256i c0 = _mm256_loadu_si256((const __m256i *)(lo16 + i));
+    __m256i c1 = _mm256_loadu_si256((const __m256i *)(lo16 + i + 16));
+    __m256i e0 = _mm256_cmpeq_epi16(key, c0);
+    __m256i e1 = _mm256_cmpeq_epi16(key, c1);
+    int m0 = _mm256_movemask_epi8(e0);
+    int m1 = _mm256_movemask_epi8(e1);
+    if ((m0 | m1) != 0) { /* resolve */ }
+}
+```
+
+---
+
+### D-141: `_mm256_load_si256` 对齐加载
+
+**核心论据 (Algo + Backend)**:
+- 当前 `_mm256_loadu_si256` 非对齐 load,~25% 概率跨 cache line
+- 对齐 `_mm256_load_si256` 省 1-2cy/次
+- 改动极低: `lo16` 加 `__attribute__((aligned(32)))`
+
+**预期收益**: 均摊 ~4cy/call
+
+**实现**: 1 行改动 (`build_b1.c` 返回指针加 aligned 属性)
+
+---
+
+### D-142: 小桶标量快速路径
+
+**核心论据 (Algo)**:
+- 桶 < 16 时 SIMD 固定开销 (广播 3cy + cmpeq 1cy + movemask 3cy ≈ 7cy) 大于标量扫描
+- 阈值调为 8 最优: 桶 4 → 省 3cy, 桶 8 → 持平
+- 30% 查询命中 < 8 的小桶, 均摊 ~2cy
+
+**预期收益**: 均摊 ~2cy/call
+
+**实现**: 5 行改动
+
+```c
+if (end - start < 8) {
+    for (int32_t i = start; i < end; i++)
+        if (lo16[i] == target_lo16 && vals[i] == target) { ... }
+    return NOT_FOUND;
+}
+```
+
+---
+
+### D-143: Sec 防御措施
+
+| 措施 | 内容 | 工作量 |
+|------|------|--------|
+| `end` 上界校验 | `if (end > (int32_t)n) end = (int32_t)n` | 1 行 |
+| vgather 禁令 | 搜索库禁止 `_mm256_i32gather_*` (Downfall CVE-2022-40982) | 文档标注 |
+| dir fuzz 测试 | 补充 fuzz target,注入恶意 dir 值 | 1 天 (P2) |
+
+---
+
+### D-144: B1 结构改动 A-F 全员否决
+
+| 候选 | 否决理由 |
+|------|----------|
+| 交错 lo16+vals | 毁 SIMD 16路并行 → 性能崩塌 |
+| lo16→uint8_t | 碰撞率 ×256 → vals 确认激增 260x |
+| 桶内 mini-bloom | k=1 假阳性 91%,净收益为负 |
+| 步进式 dir | dir 查表仅占 5%,边际收益 < 3cy |
+| 桶内 Eytzinger | 153 元素 SIMD 胜出,仅极端场景可能有效 |
+| 批处理 API | 独立议题,不属 B1 结构 |
+
+**结论**: B1 当前结构是局部最优解。结构层面零改动。D-140~D-142 仅做微架构调优。
+
+---
+
+## 更新后性能目标 (含 D-140~D-142)
+
+| 场景 | 当前 | D-130~D-133 | +D-140~D-142 | 总提升 |
+|------|------|------------|-------------|--------|
+| 10M uniform 50% (B1) | 470 cy | 330-360 cy | **320-350 cy** | **1.34-1.47x** |
+| 10M Zipf α=1.0 (B1) | 1560 cy | 600-700 cy | **590-690 cy** | **2.3-2.6x** (条件) |
+| B1 理论下界 (微架构) | -- | -- | **~310 cy** | 1.52x (极限) |
+| B1 理论下界 (+HugePages+预取) | -- | -- | **~240 cy** | 1.96x (终极) |
+
+---
+
+## D-140~D-143 执行验证 (2026-06-04)
+
+**4 决议全部落地，零失败。**
+
+### 变更摘要
+
+| 决议 | 文件 | 改动量 | 说明 |
+|------|------|--------|------|
+| D-140 | `src/search_b1.c` | ~50 行 | 2x 循环展开, 消除 vpmovmskb 延迟 |
+| D-141 | `src/build_b1.c`, `src/api.c`, `Makefile` | ~10 行 | lo16 32B 对齐分配 + 配套释放 |
+| D-142 | `src/search_b1.c` | ~8 行 | 桶 < 8 元素标量快速路径 |
+| D-143 | `src/search_b1.c` | 1 行 | `end > n` 防御性裁剪 |
+
+### 测试: 9 套 / ~65 项 / 2.5M+ queries — ZERO FAILURES
+
+| 套件 | 结果 |
+|------|------|
+| test_b1_correctness (6) | ✅ |
+| test_b1_boundary (11) | ✅ |
+| test_b1_decision (6) | ✅ |
+| test_correctness (500K) | ✅ |
+| test_boundary (18) | ✅ |
+| test_unit (9) | ✅ |
+| test_range (5+1M) | ✅ |
+| test_scalar_fallback (7) | ✅ |
+| test_bloom (3+1M) | ✅ |
+
+### 编译: GCC 15.2.0 -O3 -std=c11 -mavx2 -Wall -Wextra — 零警告
+
+### 关键技术决策记录
+
+- **`_mm256_loadu_si256` (非 `_mm256_load_si256`)**: `start` 偏移可能非 16 对齐, `load_si256` 会触发 GP fault。`loadu` 在 Haswell+ 上对齐数据零惩罚。真正收益来自基址 32B 对齐减少 cache-line-split。
+- **2x 展开而非 4x**: 4x 展开需要 4 个 YMM 寄存器 + 4 个 mask, 寄存器压力增大。2x 是 Skylake 后端的最优展开因子。
+- **小桶阈值 8 (非 16)**: 8 元素标量扫描 (8cy) 与 SIMD 固定开销 (7cy) 基本持平, 16 元素 SIMD 已明显胜出。保守取 8。

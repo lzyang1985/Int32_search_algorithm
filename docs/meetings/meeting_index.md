@@ -1,16 +1,17 @@
 ---
 title: 项目会议总目录
-last_updated: 2026-06-04T12:00
+last_updated: 2026-06-08T12:00
 status: Active
 meetings_registry:
   - meeting_id: meeting_017_performance_squeeze
-    title: 性能压榨空间研讨会
+    title: 性能压榨空间研讨会 + D-140 回归审计
     status: Reviewing
     date: 2026-06-04
+    updated_at: 2026-06-08
     participants: [Architect, Algorithm, Backend, Security, Fullstack]
     parent_task: root
     decisions_summary: |
-      10项决议 D-130~D-139。9项全票/条件通过，1项被 Sec 安全否决(跳过原子读 D-134)。核心方向：项目进入"定向 P1 优化"模式(D-138)，4 个 POC 共 13 项 P1 行动项(8-10天)：PGO+LTO+64B对齐(D-130)、Huge Pages(D-131)、预取距离调优(D-132)、热键缓存埋点+条件实现(D-133a/b)。预期均匀 50% 场景 470→330-360 cy(1.3-1.4x)，Zipf α=1.0 条件性 2.2-2.6x。9 项伪命题归档(van Emde Boas/3-byte编码/手写汇编/flatten等)。新增门禁 G6 = G1-G5 + D-130~133b 完成,门禁评估延后到 POC 全部完成。
+      10项决议 D-130~D-139。9项全票/条件通过，1项被 Sec 安全否决(跳过原子读 D-134)。核心方向：项目进入"定向 P1 优化"模式(D-138)，4 个 POC 共 13 项 P1 行动项(8-10天)：PGO+LTO+64B对齐(D-130)、Huge Pages(D-131)、预取距离调优(D-132)、热键缓存埋点+条件实现(D-133a/b)。预期均匀 50% 场景 470→330-360 cy(1.3-1.4x)，Zipf α=1.0 条件性 2.2-2.6x。9 项伪命题归档。D-140~D-143 附加决议同天落地。⚠️ 2026-06-08 修订：D-140 在 Windows GCC -O3 下产生 +25.7% 性能回归（Bloom OFF 50% hit: 140→176ns/q），根因为 GCC 自动展开器二次展开导致 YMM 寄存器溢出。D-140 已用 #ifdef 条件编译包裹默认关闭（需 -DINT32_SEARCH_B1_UNROLL2 -fno-unroll-loops 手动启用），D-141/D-142/D-143 保留。详见 05_d140_regression_audit.md。
   - meeting_id: meeting_016_optimization_direction
     title: 项目优化方向讨论会（终会）
     status: Reviewing

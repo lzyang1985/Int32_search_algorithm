@@ -70,6 +70,7 @@ participants: [Architect, Algorithm, Backend, Security, Fullstack]
 | 02_discussion.md | ✅ Frozen | 2026-06-04 | 01_agenda.md |
 | 03_decisions.md | ✅ Frozen | 2026-06-04 | 02_discussion.md |
 | 04_action_items.md | ✅ Frozen | 2026-06-04 | 03_decisions.md |
+| 05_d140_regression_audit.md | 👀 Reviewing | 2026-06-08 | D-140~D-143 性能回归审计 |
 
 ## 决议摘要
 
@@ -89,22 +90,29 @@ participants: [Architect, Algorithm, Backend, Security, Fullstack]
 | D-137 | 9 项伪命题归档 | ✅ Go |
 | D-138 | 项目进入"定向 P1 优化"模式 | ✅ Go |
 | D-139 | G1-G5 门禁评估延后,新增 G6 | ✅ Go |
+| **D-140** | **2x SIMD 循环展开 (intrinsic)** | ✅ 已执行 (B1专项, 4/4) |
+| **D-141** | **`_mm256_load_si256` 对齐加载** | ✅ 已执行 (B1专项, 4/4) |
+| **D-142** | **小桶 (<8) 标量快速路径** | ✅ 已执行 (B1专项, 4/4) |
+| **D-143** | **Sec 防御: end上界+vgather禁令** | ✅ 已执行 (B1专项, 2/2) |
+| **D-144** | **B1 结构改动 A-F 全员否决** | 📦 归档 |
 
 ## 预期性能目标
 
 | 场景 | 当前 | POC 后 | 提升 |
 |------|------|--------|------|
-| 10M uniform 50% (B1) | 470 cy | **330-360 cy** | 1.30-1.42x |
-| 10M Zipf α=1.0 (B1) | 1560 cy | **600-700 cy** | 2.2-2.6x (条件) |
+| 10M uniform 50% (B1) | 470 cy | **320-350 cy** | 1.34-1.47x |
+| 10M Zipf α=1.0 (B1) | 1560 cy | **590-690 cy** | 2.3-2.6x (条件) |
+| B1 理论下界 (微架构) | -- | **~310 cy** | 1.52x (极限) |
+| B1 理论下界 (+HugePages+预取) | -- | **~240 cy** | 1.96x (终极) |
 
 ## 行动项统计
 
 | 优先级 | 总数 | 已完成 | 待执行 |
 |--------|------|--------|--------|
-| P1 性能 POC | 13 | 0 | 13 |
+| P1 性能 POC | 17 | 4 | 13 |
 | P2 等待触发 | 3 | 0 | 3 |
-| 归档 | 9 | — | — |
-| **总计** | **25** | **0** | **16** |
+| 归档 | 15 | — | — |
+| **总计** | **35** | **0** | **20** |
 
 ## 项目终局判断
 
@@ -123,3 +131,48 @@ D-138: 项目进入"定向 P1 优化"模式
 | C-1 PGO+LTO (Arch 放弃 vs Algo/Backend 推荐) | **采纳 Backend/Algo** | Arch 估算偏高,实际 2-3 天可落地 |
 | C-2 跳过原子读 (Backend 高收益 vs Sec 高风险) | **采纳 Sec** | 收益 < 5cy, 风险 UAF |
 | C-3 热键缓存立项 (Arch 条件 vs Algo 直接) | **拆为 D-133a/b** | 避免 YAGNI,先验证后投入 |
+
+## 🔧 D-140~D-143 执行报告 (2026-06-04 执行, 2026-06-08 修订)
+
+**状态**: ⚠️ D-140 已回退（条件编译默认关闭），D-141/D-142/D-143 保留
+
+### 2026-06-08 修订：D-140 性能回归
+
+人工十轮测试发现修改后代码在 Bloom OFF 50% hit 场景下有系统性的 **+25.7% 性能退化**（140ns → 176ns/q）。四位专家并行分析确认根因：
+
+1. **GCC `-O3` 自动展开器二次展开** → YMM 寄存器溢出（Critical）
+2. 分支预测器污染：命中路径从 2 个分支点膨胀到 5 个
+3. D-141 对齐收益实际为零（热路径仍用 `loadu`）
+
+**修复**：`#ifdef INT32_SEARCH_B1_UNROLL2` 包裹 D-140 默认关闭，保留 D-141/D-142/D-143，D-143 加固（新增下界检查 + `(size_t)end` 比较）。详见 [05_d140_regression_audit.md](05_d140_regression_audit.md)。
+
+### 原始执行报告 (2026-06-04)
+
+### 变更文件
+
+| 文件 | 变更 | 决议 |
+|------|------|------|
+| `src/search_b1.c` | 2x 循环展开 + 小桶标量路径 + end 上界校验 | D-140, D-142, D-143 |
+| `src/build_b1.c` | `malloc` → `platform_aligned_alloc` 32B 对齐 | D-141 |
+| `src/api.c` | 4 处 `free(lo16)` → `platform_aligned_free(lo16)` | D-141 配套 |
+| `Makefile` | `build_b1.o` 依赖新增 `platform_memory.h` | D-141 配套 |
+
+### 测试结果
+
+| 测试套件 | 项目数 | 结果 |
+|----------|--------|------|
+| test_b1_correctness | 6 | ✅ 0 failures |
+| test_b1_boundary | 11 | ✅ 0 failures |
+| test_b1_decision | 6 | ✅ 0 failures |
+| test_correctness | 500K queries | ✅ 0 mismatches |
+| test_boundary | 18 | ✅ 0 failures |
+| test_unit | 9 | ✅ 0 failures |
+| test_range | 5 + 1M | ✅ PASS |
+| test_scalar_fallback | 7 | ✅ PASS |
+| test_bloom | 3 + 1M | ✅ PASS |
+| **总计** | **~65 + 2.5M queries** | **✅ ZERO FAILURES** |
+
+### 编译
+
+- GCC 15.2.0, `-O3 -std=c11 -mavx2 -Wall -Wextra`
+- **零警告** — 12 个源文件全部编译通过
