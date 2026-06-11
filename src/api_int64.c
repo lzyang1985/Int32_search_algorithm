@@ -44,14 +44,26 @@ int64_search_t int64_search_create(const int64_t *data, size_t n,
         if (new_bloom != NULL) {
             for (size_t i = 0; i < n; i++)
                 bloom_insert(new_bloom, new_vals[i]);
+#ifdef INT64_SEARCH_MULTI_THREAD
             atomic_init(&impl->bloom, new_bloom);
+#else
+            impl->bloom = new_bloom;
+#endif
         }
     } else {
+#ifdef INT64_SEARCH_MULTI_THREAD
         atomic_init(&impl->bloom, NULL);
+#else
+        impl->bloom = NULL;
+#endif
     }
 #else
     (void)cfg;
+#ifdef INT64_SEARCH_MULTI_THREAD
     atomic_init(&impl->bloom, NULL);
+#else
+    impl->bloom = NULL;
+#endif
 #endif
 
     int32_t *new_dir = build_dir_int64(new_vals, n);
@@ -66,7 +78,11 @@ int64_search_t int64_search_create(const int64_t *data, size_t n,
         impl->dir = NULL;
     }
 
+#ifdef INT64_SEARCH_MULTI_THREAD
     atomic_init(&impl->bloom_bypass, 0);
+#else
+    impl->bloom_bypass = 0;
+#endif
 
     return (int64_search_t)impl;
 }
@@ -78,9 +94,8 @@ int int64_search_find(int64_search_t handle, int64_t key,
 
     int64_search_impl_t *impl = (int64_search_impl_t *)handle;
 
+#ifdef INT64_SEARCH_MULTI_THREAD
     /* === Phase 2 Step 1: 进入 reader 临界区(acquire 语义) === */
-    /* fetch_add(acquire) 与 writer 的 exchange(acq_rel) 配对,保证本 reader
-     * 后续 load 看到 writer 释放的所有新数据 */
     atomic_fetch_add_explicit(&impl->reader_count, 1, memory_order_acquire);
 
     /* === Phase 2 Step 2: acquire-load 所有数据快照 === */
@@ -97,14 +112,11 @@ int int64_search_find(int64_search_t handle, int64_t key,
     if (!bypass) {
         void *bf = atomic_load_explicit(&impl->bloom, memory_order_acquire);
         if (bf != NULL && !bloom_query(bf, key)) {
-            /* 错误路径: 必须先减 reader_count 再 return */
             atomic_fetch_sub_explicit(&impl->reader_count, 1, memory_order_release);
             if (out_index) *out_index = (size_t)-1;
             return INT64_SEARCH_ERR_NOT_FOUND;
         }
     }
-#else
-    (void)bypass;
 #endif
 
     /* === Step 4: 分派搜索(纯计算,无原子操作) === */
@@ -116,8 +128,37 @@ int int64_search_find(int64_search_t handle, int64_t key,
     }
 
     /* === Phase 2 Step 5: 退出 reader 临界区(release 语义) === */
-    /* release 确保 reader 在临界区内的所有读都对后续 writer 的 acquire 可见 */
     atomic_fetch_sub_explicit(&impl->reader_count, 1, memory_order_release);
+
+#else
+    /* === 单线程模式 (D-156): 裸指针读取,零原子开销 === */
+    int     p   = impl->path;
+    size_t  _n  = impl->n;
+    const int64_t *v = impl->vals;
+    const int32_t *d = (p == PATH_B1) ? impl->dir : NULL;
+
+    /* bloom 预筛 */
+    int bypass = impl->bloom_bypass;
+#ifdef INT64_SEARCH_USE_BLOOM
+    if (!bypass) {
+        void *bf = impl->bloom;
+        if (bf != NULL && !bloom_query(bf, key)) {
+            if (out_index) *out_index = (size_t)-1;
+            return INT64_SEARCH_ERR_NOT_FOUND;
+        }
+    }
+#else
+    (void)bypass;
+#endif
+
+    /* 分派搜索 */
+    size_t idx;
+    if (p == PATH_B1) {
+        idx = search_int64_b1(v, d, _n, key);
+    } else {
+        idx = search_int64_scalar(v, _n, key);
+    }
+#endif
 
     if (idx == (size_t)-1) {
         if (out_index) *out_index = (size_t)-1;
@@ -133,8 +174,8 @@ int int64_search_destroy(int64_search_t handle) {
 
     int64_search_impl_t *impl = (int64_search_impl_t *)handle;
 
-    /* === Phase 2 Step 1: 等待所有 reader 退出(Q3 决议) === */
-    /* 必须先 wait,否则 reader 可能持有已释放的 vals/dir 指针 */
+#ifdef INT64_SEARCH_MULTI_THREAD
+    /* === Phase 2 Step 1: 等待所有 reader 退出 === */
     while (atomic_load_explicit(&impl->reader_count, memory_order_acquire) > 0) {
         platform_thread_yield();
     }
@@ -148,6 +189,17 @@ int int64_search_destroy(int64_search_t handle) {
     /* === Step 3: 释放 vals/dir === */
     const int64_t *v = atomic_load_explicit(&impl->vals, memory_order_relaxed);
     const int32_t *d = atomic_load_explicit(&impl->dir,  memory_order_relaxed);
+#else
+    /* 单线程模式: 无需等待 reader, 直接释放 */
+
+#ifdef INT64_SEARCH_USE_BLOOM
+    void *bf = impl->bloom;
+    if (bf != NULL) bloom_destroy(bf);
+#endif
+
+    const int64_t *v = impl->vals;
+    const int32_t *d = impl->dir;
+#endif
     if (v != NULL) platform_aligned_free((void *)v);
     if (d != NULL) platform_aligned_free((void *)d);
 
@@ -177,7 +229,11 @@ int int64_search_rebuild(int64_search_t handle,
     /* DEV-I64-001 修复: rebuild 重建 bloom 保证预筛与新数据一致 */
     void *new_bloom = NULL;
 #ifdef INT64_SEARCH_USE_BLOOM
+#ifdef INT64_SEARCH_MULTI_THREAD
     void *cur_bloom = atomic_load_explicit(&impl->bloom, memory_order_acquire);
+#else
+    void *cur_bloom = impl->bloom;
+#endif
     if (cur_bloom != NULL) {
         new_bloom = bloom_create(n);
         if (new_bloom != NULL) {
@@ -189,6 +245,7 @@ int int64_search_rebuild(int64_search_t handle,
     }
 #endif
 
+#ifdef INT64_SEARCH_MULTI_THREAD
     /* === Phase 2 Phase C: 5 字段原子交换(顺序 path → n → dir → vals → bloom) === */
     /* acq_rel exchange: 与 reader 的 fetch_add(acquire) 形成同步关系       */
     /* 必须完整捕获每个字段的旧值,旧值在 Phase E 统一释放(否则内存泄漏) */
@@ -206,10 +263,24 @@ int int64_search_rebuild(int64_search_t handle,
 #endif
 
     /* === Phase 2 Phase D: 等待所有 reader 退出 === */
-    /* 交换后,旧 vals/dir 仍可能正在被 reader 持有快照引用 */
     while (atomic_load_explicit(&impl->reader_count, memory_order_acquire) > 0) {
         platform_thread_yield();
     }
+#else
+    /* 单线程模式: 直接赋值 */
+    const int32_t *old_dir   = impl->dir;
+    const int64_t *old_vals  = impl->vals;
+#ifdef INT64_SEARCH_USE_BLOOM
+    void *old_bloom = impl->bloom;
+    impl->bloom = new_bloom;
+#else
+    (void)new_bloom;
+#endif
+    impl->path = new_path;
+    impl->n    = n;
+    impl->dir  = (new_path == PATH_B1) ? new_dir : NULL;
+    impl->vals = new_vals;
+#endif
 
     /* === Phase 2 Phase E: 释放旧数据(此时已无 reader 持有旧指针) === */
     if (old_vals != NULL) platform_aligned_free((void *)old_vals);
@@ -233,7 +304,11 @@ int int64_search_set_bloom_bypass(int64_search_t handle, int bypass) {
     if (handle == NULL) return INT64_SEARCH_ERR_NULL_HANDLE;
 
     int64_search_impl_t *impl = (int64_search_impl_t *)handle;
+#ifdef INT64_SEARCH_MULTI_THREAD
     atomic_store_explicit(&impl->bloom_bypass, bypass ? 1 : 0, memory_order_relaxed);
+#else
+    impl->bloom_bypass = bypass ? 1 : 0;
+#endif
 
     return INT64_SEARCH_OK;
 }
@@ -242,7 +317,11 @@ int int64_search_get_bloom_bypass(int64_search_t handle) {
     if (handle == NULL) return INT64_SEARCH_ERR_NULL_HANDLE;
 
     int64_search_impl_t *impl = (int64_search_impl_t *)handle;
+#ifdef INT64_SEARCH_MULTI_THREAD
     return atomic_load_explicit(&impl->bloom_bypass, memory_order_relaxed);
+#else
+    return impl->bloom_bypass;
+#endif
 }
 
 int int64_search_find_range(int64_search_t handle, int64_t low,

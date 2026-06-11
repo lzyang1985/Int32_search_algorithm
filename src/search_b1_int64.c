@@ -14,12 +14,29 @@ size_t search_int64_b1(const int64_t *vals, const int32_t *dir,
     int32_t start = dir[h];
     int32_t end   = dir[h + 1];
 
-    if (start >= end) return (size_t)-1;
+    /* D-143: corrupted dir defense-in-depth.
+     * start<0 catches negative indices; start>=end catches inverted range;
+     * (size_t)end > n catches out-of-bounds upper bound. */
+    if (start < 0 || start >= end) return (size_t)-1;
+    if ((size_t)end > n) return (size_t)-1;
 
     int32_t bucket_sz = end - start;
 
     if (bucket_sz > B1_FALLBACK_THRESHOLD)
         return search_int64_scalar(vals + start, bucket_sz, target);
+
+#ifdef INT64_SEARCH_B1_SMALL_BUCKET
+    /* D-142: small-bucket scalar fast path — 跳过 SIMD 固定开销.
+     * 阈值=4: 4个元素时 SIMD (broadcast + cmpeq + movemask ≈ 7cy) 与标量持平.
+     * 默认关闭, PGO/LTO 后重评估是否默认开启. */
+    if (end - start < 4) {
+        for (int32_t i = start; i < end; i++) {
+            if (vals[i] == target)
+                return (size_t)i;
+        }
+        return (size_t)-1;
+    }
+#endif
 
     __m256i key4 = _mm256_set1_epi64x(target);
     int32_t i = start;

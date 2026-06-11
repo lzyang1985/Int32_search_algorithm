@@ -3,7 +3,7 @@
 
 void *platform_aligned_alloc(size_t size)
 {
-    return _mm_malloc(size, 32);
+    return _mm_malloc(size, 64);
 }
 
 void platform_aligned_free(void *ptr)

@@ -38,25 +38,37 @@ static inline uint32_t get_bucket_key(int64_t key) {
  *   - writer: exchange(..., acq_rel) → 等 reader_count==0 → free old
  * ============================================================================ */
 
+#ifdef INT64_SEARCH_MULTI_THREAD
+/* ── 多线程 COW 模式: 原子字段 + reader_count ── */
 typedef struct {
-    /* === Phase 1 已有的原子字段(保持) === */
     _Atomic(void *) bloom;        /* 8 字节,lock-free */
     _Atomic(int)    bloom_bypass; /* 4 字节,lock-free */
 
-    /* === Phase 2 改造的原子字段 === */
-    _Atomic int              path;  /* PATH_SCALAR (0) / PATH_B1 (1); 4 字节 lock-free */
+    _Atomic int              path;  /* PATH_SCALAR / PATH_B1; 4 字节 lock-free */
     _Atomic size_t           n;     /* 数据规模; 8 字节 lock-free */
     _Atomic(const int64_t *) vals;  /* 排序后的 int64_t 数组; 8 字节 lock-free */
     _Atomic(const int32_t *) dir;   /* B1 high20 目录; 8 字节 lock-free */
 
-    /* === Phase 2 新增 === */
     _Atomic size_t reader_count;    /* 进入/退出 reader 临界区计数; 8 字节 lock-free */
 } int64_search_impl_t;
+#else
+/* ── 单线程模式 (D-156 决议): 裸字段,零原子开销 ── */
+typedef struct {
+    void          *bloom;
+    int            bloom_bypass;
+
+    int            path;
+    size_t         n;
+    const int64_t *vals;
+    const int32_t *dir;
+} int64_search_impl_t;
+#endif
 
 /* ----------------------------------------------------------------------------
- * 编译时 lock-free 验证 (Phase 2 INV-8)
+ * 编译时 lock-free 验证 (Phase 2 INV-8, 仅多线程模式)
  * 失败时拒绝编译,避免运行期退化为 mutex(性能崩溃)
  * -------------------------------------------------------------------------- */
+#ifdef INT64_SEARCH_MULTI_THREAD
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
   /* C11 stdatomic.h 提供的 lock-free 常量 */
   _Static_assert(ATOMIC_INT_LOCK_FREE == 2,
@@ -69,6 +81,7 @@ typedef struct {
   /* GCC/Clang 扩展: 在编译时精确判断 size_t 是否 lock-free */
   _Static_assert(__atomic_always_lock_free(sizeof(size_t), 0),
                  "int64_search_impl_t::n/reader_count requires lock-free _Atomic size_t");
+#endif
 #endif
 
 #endif

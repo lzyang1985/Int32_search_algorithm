@@ -1,0 +1,89 @@
+meeting_id: meeting_020_todo_roadmap_confirmation
+date: 2026-06-10
+status: Reviewing
+decisions:
+  - text: "D-165: 28项行动项→16项唯一项，去重完成"
+    responsible: Architect
+    status: Done
+  - text: "D-166: V4 概念正式消解，bench_100.ps1 简化"
+    responsible: Fullstack
+    status: Done
+  - text: "D-167: Phase A' 精简收尾路线（8项 P0/P1，~4.5天）"
+    responsible: All
+    status: Done
+  - text: "D-168: 维护模式门禁修订为 G6-minimal"
+    responsible: Architect
+    status: Done
+  - text: "D-169: task_006 Int64 Phase2 COW 立即归档"
+    responsible: DocMgr
+    status: Done
+  - text: "D-170: Int64 D-143 防御移植 P0 立即执行"
+    responsible: Sec
+    status: Pending
+  - text: "D-171: CMakeLists.txt 删除"
+    responsible: Backend
+    status: Pending
+  - text: "D-172: Rust RAII 示例取消"
+    responsible: Fullstack
+    status: Done
+  - text: "D-173: 6 项行动项正式关闭"
+    responsible: All
+    status: Done
+  - text: "D-174: 完成后 meeting_016/017/018 Frozen"
+    responsible: DocMgr
+    status: Pending
+action_items:
+  - task: "ACT-60: Int64 B1 D-143 防御移植"
+    assignee: Sec
+    status: Pending
+    priority: P0
+    workload: 30min
+  - task: "ACT-61: Int64 D-142 小桶移植"
+    assignee: Algo
+    status: Pending
+    priority: P1
+    workload: 30min
+  - task: "ACT-62: Dir fuzz 基础覆盖率"
+    assignee: Sec
+    status: Pending
+    priority: P1
+    workload: 1天
+  - task: "ACT-63: bench_100.ps1 方法论增强"
+    assignee: Fullstack
+    status: Pending
+    priority: P1
+    workload: 1h
+  - task: "ACT-64: 64B 对齐独立实施"
+    assignee: Backend
+    status: Pending
+    priority: P1
+    workload: 5min
+  - task: "ACT-65: Huge Pages 快速验证"
+    assignee: Algo
+    status: Pending
+    priority: P1
+    workload: 2h
+  - task: "ACT-66: PGO Makefile target"
+    assignee: Backend
+    status: Pending
+    priority: P1
+    workload: 1天
+  - task: "ACT-67: find_with_hint 最小原型"
+    assignee: Fullstack
+    status: Pending
+    priority: P1
+    workload: 2天
+  - task: "ACT-68: task_006 归档"
+    assignee: DocMgr
+    status: Done
+    priority: P1
+    workload: 30min
+cross_adjudications:
+  - text: "C-1: PGO 保留(1天), LTO opt-in(0.5天), 64B对齐立即独立"
+  - text: "C-2: find_with_hint 维持 P1, benchmark 验收门, @experimental"
+  - text: "C-3: 预取分阶段 Gate, L3 miss<5% 关闭"
+  - text: "C-4: D-140 30min时间盒, 二元结局(合并or永久归档)"
+updated_by: Agent_Executor
+merged_at: null
+source_doc: 03_decisions.md
+session_id: session_020_final

@@ -1,0 +1,10 @@
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt
+& ".\bench_100.ps1" >>10.txt

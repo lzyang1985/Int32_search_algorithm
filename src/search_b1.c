@@ -24,18 +24,30 @@ int32_t search_b1_find(const int32_t *vals, const uint16_t *lo16,
     uint16_t h = (uint16_t)h32 ^ 0x8000;
     int32_t start = dir[h];
     int32_t end   = (h < 65535) ? dir[h + 1] : (int32_t)n;
-    /* D-143: defensive bounds clamp — corrupted dir protection.
+#ifdef INT32_SEARCH_B1_FULL_DEFENSE
+    /* D-143 (original 4-condition): corrupted dir protection.
      * start/end come from dir[] which is validated at build time,
      * but a defense-in-depth check catches all edge cases. */
     if (start < 0 || end < 0 || start >= end)
         return INT32_SEARCH_ERR_NOT_FOUND;
     if ((size_t)end > n) end = (int32_t)n;
+#else
+    /* D-143-minimal (D-158): 防御性上界检查.
+     * dir[] 构建时已校验, 但纵深防御保留 end 越界保护.
+     * start<0 和 end<0 被 (size_t) 隐式覆盖,
+     * start>=end 被后续循环条件覆盖. */
+    if ((size_t)end > n)
+        return INT32_SEARCH_ERR_NOT_FOUND;
+#endif
 
     uint16_t target_lo16 = (uint16_t)(target & 0xFFFF);
 
-    /* D-142: small-bucket scalar fast path — skips SIMD fixed overhead
-     * (broadcast 3cy + cmpeq 1cy + movemask 3cy ≈ 7cy fixed cost).
-     * Threshold 8: at 8 elements, scalar scan (8cy) breaks even with SIMD. */
+#ifdef INT32_SEARCH_B1_SMALL_BUCKET
+    /* D-142 (D-157 条件编译, 默认关闭): small-bucket scalar fast path —
+     * skips SIMD fixed overhead (broadcast 3cy + cmpeq 1cy + movemask 3cy ≈ 7cy).
+     * Threshold 8: at 8 elements, scalar scan (8cy) breaks even with SIMD.
+     * ⚠️ 默认关闭: 在内存瓶颈环境下代码膨胀代价超过计算收益.
+     *     D-130 PGO+LTO 后重评估是否默认开启.  See meeting_019 D-157. */
     if (end - start < 8) {
         for (int32_t i = start; i < end; i++) {
             if (lo16[i] == target_lo16 && vals[i] == target) {
@@ -45,6 +57,7 @@ int32_t search_b1_find(const int32_t *vals, const uint16_t *lo16,
         }
         return INT32_SEARCH_ERR_NOT_FOUND;
     }
+#endif
 
     __m256i key = _mm256_set1_epi16((int16_t)target_lo16);
 

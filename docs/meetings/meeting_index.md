@@ -1,8 +1,35 @@
 ---
 title: 项目会议总目录
-last_updated: 2026-06-08T12:00
+last_updated: 2026-06-10T13:00:00+08:00
 status: Active
 meetings_registry:
+  - meeting_id: meeting_020_todo_roadmap_confirmation
+    title: 剩余待办事项收尾路线确认会
+    status: Reviewing
+    date: 2026-06-10
+    updated_at: 2026-06-10
+    participants: [Architect, Backend, Algo, Sec, Fullstack]
+    parent_task: root
+    decisions_summary: |
+      10项决议 D-165~D-174 全部通过。D-165: 28项去重为16项。D-166: V4概念正式消解。D-167: Phase A' 精简收尾路线（8项 P0/P1，~4.5天）。D-168: 维护模式门禁修订为 G6-minimal。D-169: task_006 立即归档。D-170: Int64 D-143 P0 立即执行。D-171: CMakeLists.txt 删除。D-172: Rust RAII 取消。D-173: 6项行动项关闭。D-174: 完成后 meeting_016/017/018 Frozen。4项交叉裁决：PGO保留/LTO opt-in、find_with_hint P1+验收门、预取分阶段Gate、D-140 30min二元结局。
+  - meeting_id: meeting_019_benchmark_regression_review
+    title: V3性能回归紧急评审会 — 100轮benchmark系统性变慢5-12%
+    status: Frozen
+    date: 2026-06-09
+    updated_at: 2026-06-10
+    participants: [Architect, Algorithm, Backend, Security, Fullstack]
+    parent_task: root
+    decisions_summary: |
+      9项决议 D-154~D-162 全部通过，P0 三项已实施 + 12遍验证通过 ✅。核心：D-155 Int64退化根因=Phase 2 COW原子化(lock xadd 44-54cy/query)。D-156 Int64默认单线程零原子开销，回收12%退化。D-157 D-142条件编译#IFDEF默认关闭，回收Bloom OFF 8.86%退化。D-158 D-143 4条件→1条件(size_t)end>n。@Host 12遍bench_100实测：四场景全部回落±3%噪声地板，Int64最快+7.58% faster，Bloom OFF 50%最后5遍持续faster。~96项测试套件全部通过，GCC 15.2.0零警告。
+  - meeting_id: meeting_018_b1_limit_review
+    title: B1路径极限评审会 — D-140~D-143修复后100轮benchmark复盘 + B1剩余空间终判
+    status: Reviewing
+    date: 2026-06-08
+    updated_at: 2026-06-08
+    participants: [Architect, Algorithm, Backend, Security, Fullstack]
+    parent_task: root
+    decisions_summary: |
+      9项决议 D-145~D-153 全部通过。D-145: V3 "略慢更稳定" 定性为微架构噪声（D-142 均摊收益 ~2.1cy 被 100轮统计噪声淹没，SNR=0.14）。D-146: B1 算法/指令级空间已耗尽（D-144 A-F 否决无误），剩余空间在内存子系统（D-130~D-132）和 API 协作层（D-150）。D-147: D-140 标记 SUSPEND 待 PGO 后重验证（-fno-unroll-loops）。D-148: Int64 B1 D-143 等效防御 P0 立即移植（Sec HIGH）。D-150/D-151: find_with_hint 和 dir fuzz 从 P2 提升到 P1。D-153: 三阶段收尾路线 (Phase A POC → Phase B 条件验证 → Phase C 终判)。新增 12 项行动项 ACT-41~ACT-52。
   - meeting_id: meeting_017_performance_squeeze
     title: 性能压榨空间研讨会 + D-140 回归审计
     status: Reviewing
@@ -148,6 +175,8 @@ meetings_registry:
 ## 进行中会议
 | meeting_id | 标题 | 日期 | 参与者 | 关联任务 |
 |------------|------|------|--------|----------|
+| meeting_020_todo_roadmap_confirmation | 剩余待办事项收尾路线确认会 | 2026-06-10 | Arch, Backend, Algo, Sec, FS | root |
+| meeting_018_b1_limit_review | B1路径极限评审会 | 2026-06-08 | Arch, Algo, Backend, Sec, FS | root |
 | meeting_017_performance_squeeze | 性能压榨空间研讨会 | 2026-06-04 | Arch, Algo, Backend, Sec, FS | root |
 | meeting_016_optimization_direction | 项目优化方向讨论会（终会） | 2026-06-02 | Arch, Algo, Backend, Sec | root |
 

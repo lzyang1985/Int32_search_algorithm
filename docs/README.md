@@ -35,13 +35,14 @@
 | [meeting_008](meetings/meeting_index/meeting_008_b1_memory_pool/meeting_README.md) | 2026-05-30 | ✅ Frozen | B1 内存池方案。5/5 全票。D-060~D-070。P0 先修 3 bug |
 | [meeting_009](meetings/meeting_index/meeting_009_poc_execution_plan/meeting_README.md) | 2026-05-30 | ✅ Frozen | POC 执行规划。4/4 全票。D-071~D-077。Step 1 FIX-01~08 全部完成 ✅ |
 | [meeting_010](meetings/meeting_index/meeting_010_crossover_results_review/meeting_README.md) | 2026-06-01 | ✅ Frozen | meeting_009 POC 执行结果评审。4/4 通过。D-078~D-084。阈值 150→2000。行动项 15/15 ✅ |
-| [meeting_011](meetings/meeting_index/meeting_011_phase2_audit_review/meeting_README.md) | 2026-06-01 | ✅ Frozen | Phase 2 审计完成评审。条件通过（4⚠️+1✅）。D-085~D-089。P1 (C1+C2) ✅ Phase 3 可启动。10 项行动 2/10 完成 |
+| [meeting_011](meetings/meeting_index/meeting_011_phase2_audit_review/meeting_README.md) | 2026-06-01 | ✅ Frozen | Phase 2 审计完成评审。条件通过（4⚠️+1✅）。D-085~D-089。10 项行动全部完成 ✅ |
+| [meeting_020](meetings/meeting_index/meeting_020_todo_roadmap_confirmation/meeting_README.md) | 2026-06-10 | 👀 Reviewing | 10项决议。28→16项去重。Phase A' 收尾路线（8项）。G6-minimal门禁修订。V4消解。task_006归档。4项交叉裁决。 |
 
 ## 任务树
 
 ```
 docs/tasks/
-├── task_001_phase1_mvp/                     ← 顶层任务（Phase 1 MVP: Path A）✅ Freeze
+├── task_001_phase1_mvp/                     ← 顶层任务（Phase 1 MVP: Path A）⛔ Archived
 │   ├── task_README.md                        — 📊 仪表盘（13/13 ✅, Phase 2 可启动）
 │   ├── ALIGNMENT_task_001_phase1_mvp.md      — ✅ Frozen  需求理解确认
 │   ├── CONSENSUS_task_001_phase1_mvp.md      — ✅ Frozen  最终共识
@@ -57,7 +58,7 @@ docs/tasks/
 │   ├── ASSESSMENT_cpu_supports_false_positive_task_001_phase1_mvp.md — ✅ Frozen  风险评估
 │   └── FIXREPORT_meeting009_step1_task_001_phase1_mvp.md — ✅ Frozen  meeting_009 Step 1 修复报告
 │
-└── task_002_phase15_cow/                    ← 子任务（Phase 1.5: Path A COW）✅ Freeze
+└── task_002_phase15_cow/                    ← 子任务（Phase 1.5: Path A COW）⛔ Archived
     ├── task_README.md                        — 📊 仪表盘（7/7 ✅, Phase 2 可启动）
     ├── ALIGNMENT_task_002_phase15_cow.md     — ✅ Frozen  需求对齐
     ├── CONSENSUS_task_002_phase15_cow.md     — ✅ Frozen  最终共识
@@ -65,7 +66,7 @@ docs/tasks/
     ├── TASK_task_002_phase15_cow.md          — ✅ Frozen  原子任务拆分
     └── ACCEPTANCE_task_002_phase15_cow.md    — ⛔ Archived  验收报告
 
-└── task_003_phase2_ab1/                     ← 子任务（Phase 2: A+B1 双路径）✅ Freeze
+└── task_003_phase2_ab1/                     ← 子任务（Phase 2: A+B1 双路径）⛔ Archived
     ├── task_README.md                        — 📊 仪表盘（11/11 ✅, v1.0.0）
     ├── ALIGNMENT_task_003_phase2_ab1.md      — ✅ Frozen  需求对齐
     ├── CONSENSUS_task_003_phase2_ab1.md      — ✅ Frozen  最终共识
@@ -82,7 +83,7 @@ docs/tasks/
 │   ├── FINAL_task_004_phase3_v1_1.md         — ✅ Frozen  项目总结
 │   └── TODO_task_004_phase3_v1_1.md          — ✅ Frozen  待办清单
 │
-├── task_005_int64_extension/                ← 子任务（Int64 B1 扩展 Phase 1）✅ Freeze
+├── task_005_int64_extension/                ← 子任务（Int64 B1 扩展 Phase 1）⛔ Archived
 │   ├── task_README.md                        — 📊 仪表盘（✅ SUCCESS）
 │   ├── ALIGNMENT_int64_b1.md                 — ✅ Frozen  需求对齐
 │   ├── CONSENSUS_int64_b1.md                 — ✅ Frozen  最终共识
@@ -92,15 +93,15 @@ docs/tasks/
 │   ├── FINAL_int64_b1.md                     — ✅ Frozen  项目总结
 │   └── TODO_int64_b1.md                      — ✅ Frozen  待办清单
 │
-└── task_006_int64_phase2_cow/               ← 子任务（Int64 Phase 2: COW 多线程）✅ Freeze
-    ├── task_README.md                        — 📊 仪表盘（11/11 ✅, v0.2.0）
+└── task_006_int64_phase2_cow/               ← 子任务（Int64 Phase 2: COW 多线程）⛔ Archived
+    ├── task_README.md                        — 📊 仪表盘（11/11 ✅, v0.2.0, meeting_020 D-169 归档确认）
     ├── ALIGNMENT_task_006_int64_phase2_cow.md — ✅ Frozen  需求对齐
     ├── DESIGN_task_006_int64_phase2_cow.md    — ⛔ Archived  系统设计
     ├── TASK_task_006_int64_phase2_cow.md      — ✅ Frozen  原子任务拆分
     ├── ACCEPTANCE_T1~T8 (x7)                  — ✅ Frozen  逐任务验收
     └── ACCEPTANCE_V1_V2_V3_linux_ci.md        — ⛔ Archived  端到端验证报告
 
-状态统计: ✅ Frozen x34 | ⛔ Archived x6
+状态统计: ✅ Frozen x34 | ⛔ Archived x7
 
 三阶段交付（meeting_003 D-023，2026-05-27 修订：拆分为四阶段）：
   ├── ✅ Phase 1 MVP：AVX2 SIMD 二分（Path A 单路径）— 已交付，meeting_004 P0 修正完成
@@ -244,4 +245,6 @@ graph TD
 | 2026-06-08 | **Int64 Phase 2 T6-T8 执行完成**：TSan 并发测试 + L7-COW 行为测试 + Makefile/README。Windows MinGW + Linux GCC 11.4 双平台 |
 | 2026-06-08 | **Int64 Phase 2 V1/V2/V3 Linux CI 端到端验证通过**：test_int64 49/49 PASS + TSan 3/3 零告警 + 10M perf 498 cy/query。task_006 归档至 docs/architecture/ + docs/decisions/ |
 | 2026-06-08 | **文档管理整理**：task_README 状态板刷新，task_004/task_005/task_006 补充进全局任务树。status: Frozen x34 | Archived x6 |
+| 2026-06-10 | **meeting_020 待办收尾路线确认会**：10项决议 D-165~D-174。28→16项去重。V4消解。Phase A' 精简路线。task_006 归档确认。G6-minimal门禁修订。 |
+| 2026-06-10 | **文档管理整理**：task_006 归档（Freeze→Archive），task_005 仪表盘刷新，meeting_020 仪表盘+meeting_index.md 更新，全局 README 同步。status: Frozen x34 | Archived x7 |
 | 2026-06-08 | **D-140 性能回归审计**：人工十轮测试发现 D-140（2x SIMD 展开）在 Windows GCC -O3 下产生 +25.7% 性能退化（Bloom OFF 50%: 140→176ns/q）。根因为 GCC 自动展开器二次展开导致 YMM 寄存器溢出。四位专家（Arch/Algo/Backend/Sec）并行分析确认。D-140 用 `#ifdef INT32_SEARCH_B1_UNROLL2` 条件编译包裹默认关闭，D-141/D-142/D-143 保留，D-143 加固（下界检查 + size_t 比较）。修复后性能完全恢复（141ns/q）。详见 meeting_017/05_d140_regression_audit.md。 |
